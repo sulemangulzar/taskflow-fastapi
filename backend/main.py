@@ -1,6 +1,17 @@
-def main():
-    print("Hello from taskflow-fastapi!")
+from fastapi import FastAPI
+
+from app.api.routes.users import router as auth_router
+
+app = FastAPI(title="TaskFlow API")
+
+app.include_router(auth_router)
 
 
-if __name__ == "__main__":
-    main()
+@app.get("/")
+async def home():
+    return {"message": "Welcome to TaskFlow API"}
+
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
