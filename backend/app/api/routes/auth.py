@@ -8,8 +8,7 @@ from app.api.dependencies import (
     oauth_scheme,
 )
 from app.models.user import User
-from app.schemas.auth import RefreshTokenRequest, RegisterUser, TokenResponse
-from app.schemas.user import UserRead
+from app.schemas.auth import RefreshTokenRequest, RegisterUser, TokenResponse, UserRead
 
 router = APIRouter(prefix="/auth/v1", tags=["Authentication"])
 role_checker = RoleChecker(["admin"])

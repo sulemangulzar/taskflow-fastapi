@@ -10,6 +10,7 @@ from app.db.session import get_session
 from app.models.user import User
 from app.repositories.token_repo import token_in_blocklist
 from app.repositories.user import UserRepository
+from app.services.project import ProjectService
 from app.services.user import UserService
 
 oauth_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
@@ -21,7 +22,12 @@ def get_user_service(session: SessionDep):
     return UserService(session)
 
 
+def get_project_service(session: SessionDep):
+    return ProjectService(session)
+
+
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+ProjectServiceDep = Annotated[ProjectService, Depends(get_project_service)]
 
 
 async def get_current_user(
