@@ -2,11 +2,17 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-from app.api.dependencies import ProjectServiceDep, get_current_user
+from app.api.dependencies import ProjectServiceDep, RoleChecker, get_current_user
 from app.models.user import User
 from app.schemas.project import CreateProject, ReadProject, UpdateProject
 
-router = APIRouter(prefix="/api/v1/projects", tags=["Projects"])
+project_role_checker = Depends(RoleChecker(["admin", "user"]))
+
+router = APIRouter(
+    prefix="/api/v1/projects",
+    tags=["Projects"],
+    dependencies=[project_role_checker],
+)
 
 
 @router.post("", response_model=ReadProject, status_code=status.HTTP_201_CREATED)

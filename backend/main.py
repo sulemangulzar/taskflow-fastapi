@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.project import router as project_router
+from app.api.routes.task import router as task_router
 
 app = FastAPI(
     title="TaskFlow API",
@@ -12,6 +13,7 @@ app = FastAPI(
 
 app.include_router(auth_router)
 app.include_router(project_router)
+app.include_router(task_router)
 
 
 @app.get("/")
