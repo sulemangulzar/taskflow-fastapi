@@ -12,7 +12,7 @@ from app.repositories.token_repo import token_in_blocklist
 from app.repositories.user import UserRepository
 from app.services.user import UserService
 
-oauth_scheme = OAuth2PasswordBearer(tokenUrl="/auth/v1/login")
+oauth_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
@@ -61,3 +61,19 @@ async def get_current_user(
 
 
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
+
+
+class RoleChecker:
+    def __init__(self, allowed_roles: list[str]):
+        self.allowed_roles = allowed_roles
+
+    def __call__(self, current_user: CurrentUserDep) -> bool:
+        user_role = getattr(current_user, "role", None)
+
+        if user_role in self.allowed_roles:
+            return True
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not allowed to perform this action",
+        )

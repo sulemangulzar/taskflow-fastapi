@@ -23,11 +23,12 @@ class UserService:
             raise HTTPException(status_code=409, detail="User already exists")
 
         hashed_pw = await asyncio.to_thread(get_hashed_password, credentials.password)
-
+        user_role = "user"
         new_user = User(
             name=credentials.name,
             email=str(credentials.email),
             hashed_password=hashed_pw,
+            role=user_role,
         )
 
         try:
@@ -51,8 +52,8 @@ class UserService:
             raise HTTPException(status_code=401, detail="Invalid email or password")
 
         user_id_str = str(user.id)
-        access_token = create_access_token({"sub": user_id_str})
-        refresh_token = create_refresh_token({"sub": user_id_str})
+        access_token = create_access_token({"sub": user_id_str, "role": user.role})
+        refresh_token = create_refresh_token({"sub": user_id_str, "role": user.role})
 
         return {
             "access_token": access_token,
@@ -79,8 +80,6 @@ class UserService:
         if not isinstance(jti, str) or not isinstance(exp, int) or not user_id:
             raise credentials_exception
 
-        await add_jti_to_blocklist(jti, exp)
-
         try:
             user_uuid = UUID(user_id)
         except ValueError:
@@ -91,8 +90,19 @@ class UserService:
         if not user or not user.is_active:
             raise credentials_exception
 
-        new_access_token = create_access_token({"sub": str(user.id)})
-        return {"access_token": new_access_token, "token_type": "bearer"}
+        await add_jti_to_blocklist(jti, exp)
+
+        user_id_str = str(user.id)
+        new_access_token = create_access_token({"sub": user_id_str, "role": user.role})
+        new_refresh_token = create_refresh_token(
+            {"sub": user_id_str, "role": user.role}
+        )
+
+        return {
+            "access_token": new_access_token,
+            "refresh_token": new_refresh_token,
+            "token_type": "bearer",
+        }
 
     async def logout(self, token: str):
         payload = decode_token(token)

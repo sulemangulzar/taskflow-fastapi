@@ -1,11 +1,17 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
-from app.api.routes.users import router as auth_router
+from app.api.routes.auth import router as auth_router
+from app.api.routes.auth_legacy import router as legacy_auth_router
 
-app = FastAPI(title="TaskFlow API")
+app = FastAPI(
+    title="TaskFlow API",
+    version="1.0.0",
+    description="Production API for TaskFlow.",
+)
 
 app.include_router(auth_router)
+app.include_router(legacy_auth_router)
 
 
 @app.get("/")

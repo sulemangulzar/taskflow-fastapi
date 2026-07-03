@@ -1,9 +1,9 @@
-from datetime import UTC, datetime
+from datetime import datetime
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
+import sqlalchemy.dialects.postgresql as pg
 from sqlalchemy import Boolean, Column, DateTime, String, func
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field
 
 from app.db.base import Base
@@ -14,11 +14,7 @@ class User(Base, table=True):
 
     id: UUID = Field(
         default_factory=uuid4,
-        sa_column=Column(
-            PG_UUID(as_uuid=True),
-            primary_key=True,
-            nullable=False,
-        ),
+        primary_key=True,
     )
 
     name: str = Field(
@@ -43,19 +39,30 @@ class User(Base, table=True):
             nullable=False,
         ),
     )
+    role: str = Field(
+        sa_column=Column(pg.VARCHAR, nullable=False, server_default="user")
+    )
 
     is_active: bool = Field(
         default=True,
         sa_column=Column(
             Boolean,
             nullable=False,
-            default=True,
             server_default=sa.true(),
         ),
     )
 
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+    is_verified: bool = Field(
+        default=False,
+        sa_column=Column(
+            Boolean,
+            nullable=False,
+            server_default=sa.false(),
+        ),
+    )
+
+    created_at: datetime | None = Field(
+        default=None,
         sa_column=Column(
             DateTime(timezone=True),
             nullable=False,
@@ -63,8 +70,8 @@ class User(Base, table=True):
         ),
     )
 
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+    updated_at: datetime | None = Field(
+        default=None,
         sa_column=Column(
             DateTime(timezone=True),
             nullable=False,

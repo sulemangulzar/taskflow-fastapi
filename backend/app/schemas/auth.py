@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 class RegisterUser(BaseModel):
@@ -19,4 +19,10 @@ class TokenResponse(BaseModel):
 
 
 class RefreshTokenRequest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {"refresh_token": "paste-your-refresh-token-here"}
+        }
+    )
+
     refresh_token: str
