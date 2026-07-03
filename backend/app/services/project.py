@@ -1,12 +1,12 @@
 from uuid import UUID
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.projects import Project
 from app.repositories.project import ProjectRepository
-from app.schemas.project import CreateProject
+from app.schemas.project import CreateProject, UpdateProject
 
 
 class ProjectService:
@@ -24,9 +24,50 @@ class ProjectService:
         except IntegrityError as exc:
             await self.repository.rollback()
             raise HTTPException(
-                status_code=400,
+                status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Could not create project",
             ) from exc
 
-    async def get_all(self, user_id: UUID):
+    async def get_all(self, user_id: UUID) -> list[Project]:
         return await self.repository.get_all(user_id)
+
+    async def get_project(self, user_id: UUID, project_id: UUID) -> Project:
+        project = await self.repository.get_one(user_id, project_id)
+        if project is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Project not found",
+            )
+        return project
+
+    async def update_project(
+        self, user_id: UUID, project_id: UUID, data: UpdateProject
+    ) -> Project:
+        project = await self.get_project(user_id, project_id)
+        update_data = data.model_dump(exclude_unset=True)
+
+        for field, value in update_data.items():
+            setattr(project, field, value)
+
+        try:
+            return await self.repository.update(project)
+        except IntegrityError as exc:
+            await self.repository.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not update project",
+            ) from exc
+
+    async def delete_project(self, user_id: UUID, project_id: UUID) -> dict[str, str]:
+        project = await self.get_project(user_id, project_id)
+
+        try:
+            await self.repository.delete(project)
+        except IntegrityError as exc:
+            await self.repository.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not delete project",
+            ) from exc
+
+        return {"message": "Project deleted successfully"}

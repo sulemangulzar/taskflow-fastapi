@@ -22,5 +22,24 @@ class ProjectRepository:
         )
         return list(result.scalars().all())
 
+    async def get_one(self, user_id: UUID, project_id: UUID) -> Project | None:
+        result = await self.session.execute(
+            select(Project).where(
+                Project.owner_id == user_id,
+                Project.id == project_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def update(self, project: Project) -> Project:
+        self.session.add(project)
+        await self.session.commit()
+        await self.session.refresh(project)
+        return project
+
+    async def delete(self, project: Project) -> None:
+        await self.session.delete(project)
+        await self.session.commit()
+
     async def rollback(self) -> None:
         await self.session.rollback()
