@@ -1,10 +1,15 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from app.api.dependencies import ProjectServiceDep, RoleChecker, get_current_user
 from app.models.user import User
-from app.schemas.project import CreateProject, ReadProject, UpdateProject
+from app.schemas.project import (
+    CreateProject,
+    PaginatedResponse,
+    ReadProject,
+    UpdateProject,
+)
 
 project_role_checker = Depends(RoleChecker(["admin", "user"]))
 
@@ -24,12 +29,15 @@ async def create_project(
     return await service.create(data, user.id)
 
 
-@router.get("", response_model=list[ReadProject])
+@router.get("", response_model=PaginatedResponse[ReadProject])
 async def get_all_projects(
     service: ProjectServiceDep,
     user: User = Depends(get_current_user),
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
+    search: str | None = Query(None),
 ):
-    return await service.get_all(user.id)
+    return await service.get_all(user.id, page, size, search)
 
 
 @router.get("/{project_id}", response_model=ReadProject)

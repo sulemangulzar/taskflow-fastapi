@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Generic, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -23,3 +24,14 @@ class ReadProject(BaseModel):
     owner_id: UUID
     created_at: datetime
     updated_at: datetime | None = None
+
+
+T = TypeVar("T")
+
+
+class PaginatedResponse(BaseModel, Generic[T]):
+    items: list[T]
+    total: int
+    page: int
+    size: int
+    pages: int

@@ -14,7 +14,7 @@ from app.services.project import ProjectService
 from app.services.task import TaskService
 from app.services.user import UserService
 
-oauth_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth_scheme = OAuth2PasswordBearer(tokenUrl="/auth/v1/login")
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 

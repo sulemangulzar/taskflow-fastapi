@@ -1,3 +1,4 @@
+from math import ceil
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -28,8 +29,18 @@ class ProjectService:
                 detail="Could not create project",
             ) from exc
 
-    async def get_all(self, user_id: UUID) -> list[Project]:
-        return await self.repository.get_all(user_id)
+    async def get_all(
+        self, user_id: UUID, page: int, size: int, search: str | None
+    ) -> dict:
+        projects, total = await self.repository.get_all(user_id, page, size, search)
+
+        return {
+            "items": projects,
+            "total": total,
+            "page": page,
+            "size": size,
+            "pages": ceil(total / size) if total else 0,
+        }
 
     async def get_project(self, user_id: UUID, project_id: UUID) -> Project:
         project = await self.repository.get_one(user_id, project_id)
