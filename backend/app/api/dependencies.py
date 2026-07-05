@@ -1,3 +1,7 @@
+from app.errors import ForbiddenError
+from app.errors import InvalidTokenType
+from app.errors import UserNotFoundOrUnauthorised
+from app.errors import InvalidToken
 from typing import Annotated
 from uuid import UUID
 
@@ -39,35 +43,30 @@ TaskServiceDep = Annotated[TaskService, Depends(get_task_service)]
 async def get_current_user(
     token: Annotated[str, Depends(oauth_scheme)], session: SessionDep
 ) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
 
     payload = decode_token(token)
     if payload is None or payload.get("type") != "access":
-        raise credentials_exception
+        raise InvalidTokenType()
 
     jti = payload.get("jti")
     user_id = payload.get("sub")
 
     if not isinstance(jti, str) or not isinstance(user_id, str):
-        raise credentials_exception
+        raise InvalidToken()
 
     try:
         user_uuid = UUID(user_id)
     except ValueError:
-        raise credentials_exception
+        raise InvalidToken()
 
     if await token_in_blocklist(jti):
-        raise HTTPException(status_code=401, detail="Token has been revoked")
+        raise InvalidToken()
 
     repo = UserRepository(session)
     user = await repo.get_by_id(user_uuid)
 
     if not user or not user.is_active:
-        raise credentials_exception
+        raise UserNotFoundOrUnauthorised()
 
     return user
 
@@ -85,7 +84,4 @@ class RoleChecker:
         if user_role in self.allowed_roles:
             return True
 
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not allowed to perform this action",
-        )
+        raise ForbiddenError()

@@ -1,7 +1,12 @@
 import asyncio
 from uuid import UUID
 
-from fastapi import HTTPException
+from app.errors import (
+    EmailAlreadyExistsError,
+    InputValidationError,
+    InvalidCredentialsError,
+    InvalidToken,
+)
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +25,7 @@ class UserService:
     async def create(self, credentials: RegisterUser) -> User:
         existing_user = await self.repository.get_by_email(str(credentials.email))
         if existing_user:
-            raise HTTPException(status_code=409, detail="User already exists")
+            raise EmailAlreadyExistsError()
 
         hashed_pw = await asyncio.to_thread(get_hashed_password, credentials.password)
         user_role = "user"
@@ -35,21 +40,21 @@ class UserService:
             return await self.repository.create(new_user)
         except IntegrityError:
             await self.repository.rollback()
-            raise HTTPException(status_code=409, detail="User already exists")
+            raise EmailAlreadyExistsError()
 
     async def login(self, email: str, password: str):
         if not email:
-            raise HTTPException(status_code=400, detail="Email cannot be empty")
+            raise InputValidationError("Email cannot be empty")
 
         user = await self.repository.get_by_email(str(email))
         if not user:
-            raise HTTPException(status_code=401, detail="Invalid email or password")
+            raise InvalidCredentialsError()
 
         is_valid = await asyncio.to_thread(
             verify_password, password, user.hashed_password
         )
         if not is_valid:
-            raise HTTPException(status_code=401, detail="Invalid email or password")
+            raise InvalidCredentialsError()
 
         user_id_str = str(user.id)
         access_token = create_access_token({"sub": user_id_str, "role": user.role})
@@ -62,9 +67,7 @@ class UserService:
         }
 
     async def refresh(self, refresh_token: str):
-        credentials_exception = HTTPException(
-            status_code=401, detail="Invalid refresh token"
-        )
+        credentials_exception = InvalidToken("Invalid refresh token")
 
         payload = decode_token(refresh_token)
         if payload is None or payload.get("type") != "refresh":
@@ -107,13 +110,13 @@ class UserService:
     async def logout(self, token: str):
         payload = decode_token(token)
         if not payload:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise InvalidToken("Invalid token")
 
         jti = payload.get("jti")
         exp = payload.get("exp")
 
         if not jti or not exp:
-            raise HTTPException(status_code=401, detail="Invalid token payload")
+            raise InvalidToken("Invalid token payload")
         await add_jti_to_blocklist(jti, exp)
 
         return {"message": "Successfully logged out"}

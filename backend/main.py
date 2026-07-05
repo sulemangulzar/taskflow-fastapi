@@ -5,11 +5,15 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.project import router as project_router
 from app.api.routes.task import router as task_router
 
+from app.middleware import register_middleware
+
 app = FastAPI(
     title="TaskFlow API",
     version="1.0.0",
     description="Production API for TaskFlow.",
 )
+
+register_middleware(app)
 
 app.include_router(auth_router)
 app.include_router(project_router)

@@ -1,6 +1,11 @@
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from app.errors import (
+    InputValidationError,
+    ProjectNotFound,
+    TaskNotFound,
+    UserNotFoundOrUnauthorised,
+)
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,26 +25,17 @@ class TaskService:
     async def _get_owned_project(self, user_id: UUID, project_id: UUID):
         project = await self.project_repository.get_one(user_id, project_id)
         if project is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Project not found",
-            )
+            raise ProjectNotFound()
         return project
 
     async def _get_owned_task(self, user_id: UUID, task_id: UUID) -> Task:
         task = await self.repository.get_one(task_id)
         if task is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Task not found",
-            )
+            raise TaskNotFound()
 
         project = await self.project_repository.get_one(user_id, task.project_id)
         if project is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Task not found",
-            )
+            raise TaskNotFound()
 
         return task
 
@@ -56,10 +52,7 @@ class TaskService:
 
         user = await self.user_repository.get_by_email(email)
         if user is None or not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Assigned user not found",
-            )
+            raise UserNotFoundOrUnauthorised("Assigned user not found")
 
         return user.id, str(user.email)
 
@@ -83,10 +76,7 @@ class TaskService:
             return await self.repository.create(task)
         except IntegrityError as exc:
             await self.repository.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Could not create task",
-            ) from exc
+            raise InputValidationError("Could not create task") from exc
 
     async def get_project_tasks(self, user_id: UUID, project_id: UUID) -> list[Task]:
         await self._get_owned_project(user_id, project_id)
@@ -113,10 +103,7 @@ class TaskService:
             return await self.repository.update(task)
         except IntegrityError as exc:
             await self.repository.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Could not update task",
-            ) from exc
+            raise InputValidationError("Could not update task") from exc
 
     async def delete_task(self, user_id: UUID, task_id: UUID) -> dict[str, str]:
         task = await self._get_owned_task(user_id, task_id)
@@ -125,9 +112,6 @@ class TaskService:
             await self.repository.delete(task)
         except IntegrityError as exc:
             await self.repository.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Could not delete task",
-            ) from exc
+            raise InputValidationError("Could not delete task") from exc
 
         return {"message": "Task deleted successfully"}
