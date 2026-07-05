@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     MAIL_FROM: str
     MAIL_SERVER: str
     MAIL_PORT: int
-
+    DOMAIN : str
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

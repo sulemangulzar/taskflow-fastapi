@@ -24,5 +24,11 @@ class UserRepository:
         await self.session.refresh(user)
         return user
 
+    async def update(self, user: User) -> User:
+        self.session.add(user)
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user
+
     async def rollback(self) -> None:
         await self.session.rollback()

@@ -1,6 +1,11 @@
+from email_validator import validate_email
+from app.mail import create_message
+from email_validator import validate_email
+from anyio import lowlevel
+from app.core.utils import create_url_safe_token, decode_url_safe_token
 import asyncio
 from uuid import UUID
-
+from app.mail import mail
 from app.errors import (
     EmailAlreadyExistsError,
     InputValidationError,
@@ -9,7 +14,7 @@ from app.errors import (
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.core.config import settings
 from app.core.jwt import create_access_token, create_refresh_token, decode_token
 from app.core.security import get_hashed_password, verify_password
 from app.models.user import User
@@ -37,6 +42,20 @@ class UserService:
         )
 
         try:
+            url_safe_token = create_url_safe_token({"email": str(credentials.email)})
+            link = f"http://{settings.DOMAIN}/auth/v1/verify/{url_safe_token}"
+            html_template = f"""
+            <h2>Email verification</h2>
+            <p>Click below to verify your account:</p>
+            <a href="{link}">Verify email</a>
+            <p>This link expires in 30 minutes.</p>
+            """
+            message = create_message(
+                recipients=[str(credentials.email)],
+                subject="Welcome to TaskFlow",
+                body=html_template
+            )
+            await mail.send_message(message)
             return await self.repository.create(new_user)
         except IntegrityError:
             await self.repository.rollback()
@@ -120,3 +139,21 @@ class UserService:
         await add_jti_to_blocklist(jti, exp)
 
         return {"message": "Successfully logged out"}
+
+    async def verify_email(self, token: str):
+        token_data = decode_url_safe_token(token)
+        if not token_data or "email" not in token_data:
+            raise InvalidToken("Invalid or expired verification token")
+        
+        email = token_data["email"]
+        user = await self.repository.get_by_email(email)
+        if not user:
+            raise InputValidationError("User not found")
+        
+        if user.is_verified:
+            return {"message": "Email is already verified"}
+            
+        user.is_verified = True
+        await self.repository.update(user)
+        
+        return {"message": "Email successfully verified"}

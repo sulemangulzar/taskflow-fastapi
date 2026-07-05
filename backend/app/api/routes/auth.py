@@ -38,6 +38,10 @@ async def signup(credentials: RegisterUser, service: UserServiceDep):
     return await service.create(credentials)
 
 
+@router.get("/verify/{token}")
+async def verify_email(token: str, service: UserServiceDep):
+    return await service.verify_email(token)
+
 
 @router.post("/login", response_model=TokenResponse)
 async def login(

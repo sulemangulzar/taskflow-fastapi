@@ -13,7 +13,7 @@ from sqlmodel import SQLModel
 
 from app.api.dependencies import get_current_user, get_session
 from app.db.redis import token_blocklist
-from app.main import app
+from main import app
 
 # ---------------------------------------------------------------------------
 # In-memory async SQLite engine
