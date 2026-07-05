@@ -19,10 +19,6 @@ async def signup(credentials: RegisterUser, service: UserServiceDep):
     return await service.create(credentials)
 
 
-@router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-async def register(credentials: RegisterUser, service: UserServiceDep):
-    return await service.create(credentials)
-
 
 @router.post("/login", response_model=TokenResponse)
 async def login(

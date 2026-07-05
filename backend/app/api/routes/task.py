@@ -9,13 +9,14 @@ from app.schemas.task import CreateTask, ReadTask, UpdateTask
 task_role_checker = Depends(RoleChecker(["admin", "user"]))
 
 router = APIRouter(
+    prefix="/api/v1",
     tags=["Tasks"],
     dependencies=[task_role_checker],
 )
 
 
 @router.post(
-    "/api/v1/projects/{project_id}/tasks",
+    "/projects/{project_id}/tasks",
     response_model=ReadTask,
     status_code=status.HTTP_201_CREATED,
 )
@@ -28,7 +29,7 @@ async def create_task(
     return await service.create(user.id, project_id, data)
 
 
-@router.get("/api/v1/projects/{project_id}/tasks", response_model=list[ReadTask])
+@router.get("/projects/{project_id}/tasks", response_model=list[ReadTask])
 async def get_project_tasks(
     project_id: UUID,
     service: TaskServiceDep,
@@ -37,7 +38,7 @@ async def get_project_tasks(
     return await service.get_project_tasks(user.id, project_id)
 
 
-@router.get("/api/v1/tasks/{task_id}", response_model=ReadTask)
+@router.get("/tasks/{task_id}", response_model=ReadTask)
 async def get_task(
     task_id: UUID,
     service: TaskServiceDep,
@@ -46,7 +47,7 @@ async def get_task(
     return await service.get_task(user.id, task_id)
 
 
-@router.patch("/api/v1/tasks/{task_id}", response_model=ReadTask)
+@router.patch("/tasks/{task_id}", response_model=ReadTask)
 async def update_task(
     task_id: UUID,
     data: UpdateTask,
@@ -56,7 +57,7 @@ async def update_task(
     return await service.update_task(user.id, task_id, data)
 
 
-@router.delete("/api/v1/tasks/{task_id}")
+@router.delete("/tasks/{task_id}")
 async def delete_task(
     task_id: UUID,
     service: TaskServiceDep,
