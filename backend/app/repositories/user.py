@@ -1,3 +1,4 @@
+from fastapi.responses import JSONResponse
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession

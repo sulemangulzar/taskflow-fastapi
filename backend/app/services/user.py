@@ -1,3 +1,4 @@
+from fastapi import BackgroundTasks
 from app.errors import PassordResetNotMatching
 from fastapi import HTTPException
 from app.schemas.auth import PasswordResetConfirm
@@ -34,7 +35,7 @@ class UserService:
     def __init__(self, session: AsyncSession):
         self.repository = UserRepository(session)
 
-    async def create(self, credentials: RegisterUser) -> User:
+    async def create(self, credentials: RegisterUser, bg_task : BackgroundTasks) -> User:
         existing_user = await self.repository.get_by_email(str(credentials.email))
         if existing_user:
             raise EmailAlreadyExistsError()
@@ -62,7 +63,7 @@ class UserService:
                 subject="Welcome to TaskFlow",
                 body=html_template
             )
-            await mail.send_message(message)
+            bg_task.add_task(mail.send_message, message)
             return await self.repository.create(new_user)
         except IntegrityError:
             await self.repository.rollback()
@@ -165,7 +166,7 @@ class UserService:
         
         return {"message": "Email successfully verified"}
 
-    async def reset_password(self, email : EmailStr):
+    async def reset_password(self, email : EmailStr, bg_task : BackgroundTasks):
         try:
             url_safe_token = create_url_safe_token({"email": str(email)})
             link = f"http://{settings.DOMAIN}/auth/v1/reset-password/{url_safe_token}"
@@ -180,7 +181,7 @@ class UserService:
                 subject="Welcome to TaskFlow",
                 body=html_template
             )
-            await mail.send_message(message)
+            bg_task.add_task(mail.send_message, message)
             return JSONResponse(content={"message" : "Please Check Your Email To Reset Your Password"}, status_code=status.HTTP_200_OK)
 
         except: 
