@@ -33,6 +33,9 @@ class TaskService:
         if task is None:
             raise TaskNotFound()
 
+        if task.assigned_to_id == user_id or task.created_by_id == user_id:
+            return task
+
         project = await self.project_repository.get_one(user_id, task.project_id)
         if project is None:
             raise TaskNotFound()
@@ -107,6 +110,11 @@ class TaskService:
 
     async def delete_task(self, user_id: UUID, task_id: UUID) -> dict[str, str]:
         task = await self._get_owned_task(user_id, task_id)
+
+        # Only project owner or task creator can delete
+        project = await self.project_repository.get_one(user_id, task.project_id)
+        if project is None and task.created_by_id != user_id:
+            raise UserNotFoundOrUnauthorised("You do not have permission to delete this task")
 
         try:
             await self.repository.delete(task)

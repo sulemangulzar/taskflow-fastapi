@@ -1,5 +1,5 @@
 from fastapi import BackgroundTasks
-from app.errors import PassordResetNotMatching
+from app.errors import PasswordResetNotMatching
 from fastapi import HTTPException
 from app.schemas.auth import PasswordResetConfirm
 from fastapi import status
@@ -8,7 +8,7 @@ from pydantic import EmailStr
 from app.schemas.auth import PasswordReset
 from email_validator import validate_email
 from app.mail import create_message
-from email_validator import validate_email
+
 from anyio import lowlevel
 from app.core.utils import create_url_safe_token, decode_url_safe_token
 import asyncio
@@ -134,17 +134,25 @@ class UserService:
             "token_type": "bearer",
         }
 
-    async def logout(self, token: str):
-        payload = decode_token(token)
+    async def logout(self, access_token: str, refresh_token: str | None = None):
+        # Block access token
+        payload = decode_token(access_token)
         if not payload:
             raise InvalidToken("Invalid token")
-
         jti = payload.get("jti")
         exp = payload.get("exp")
-
         if not jti or not exp:
             raise InvalidToken("Invalid token payload")
         await add_jti_to_blocklist(jti, exp)
+
+        # Block refresh token if provided
+        if refresh_token:
+            rt_payload = decode_token(refresh_token)
+            if rt_payload:
+                rt_jti = rt_payload.get("jti")
+                rt_exp = rt_payload.get("exp")
+                if rt_jti and rt_exp:
+                    await add_jti_to_blocklist(rt_jti, rt_exp)
 
         return {"message": "Successfully logged out"}
 
@@ -168,6 +176,10 @@ class UserService:
 
     async def reset_password(self, email : EmailStr, bg_task : BackgroundTasks):
         try:
+            user = await self.repository.get_by_email(str(email))
+            if not user:
+                return JSONResponse(content={"message" : "Please Check Your Email To Reset Your Password"}, status_code=status.HTTP_200_OK)
+
             url_safe_token = create_url_safe_token({"email": str(email)})
             link = f"http://{settings.DOMAIN}/auth/v1/reset-password/{url_safe_token}"
             html_template = f"""
@@ -184,13 +196,13 @@ class UserService:
             bg_task.add_task(mail.send_message, message)
             return JSONResponse(content={"message" : "Please Check Your Email To Reset Your Password"}, status_code=status.HTTP_200_OK)
 
-        except: 
-            return JSONResponse(content={"message" : "Invalid Email"}, status_code=status.HTTP_404_NOT_FOUND)
+        except Exception as e: 
+            return JSONResponse(content={"message" : "An error occurred"}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
     
     async def reset_password_confirm(self, token: str, new_creds: PasswordResetConfirm):
         if new_creds.new_password != new_creds.confirm_new_password:
-            raise PassordResetNotMatching()
+            raise PasswordResetNotMatching()
 
         token_data = decode_url_safe_token(token)
         if not token_data or "email" not in token_data:

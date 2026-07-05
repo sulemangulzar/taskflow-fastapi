@@ -47,6 +47,6 @@ class AccountNotVerified(HTTPException):
     def __init__(self, detail: str = "Account Not Verified"):
         super().__init__(status_code=403, detail=detail)
 
-class PassordResetNotMatching(HTTPException):
+class PasswordResetNotMatching(HTTPException):
     def __init__(self, detail: str = "Passwords are not same"):
         super().__init__(status_code=403, detail=detail)
