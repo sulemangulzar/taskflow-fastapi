@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Body, Depends, status
+from typing import List
+
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.dependencies import (
@@ -7,12 +9,29 @@ from app.api.dependencies import (
     get_current_user,
     oauth_scheme,
 )
+from app.mail import create_message, mail
 from app.models.user import User
-from app.schemas.auth import RefreshTokenRequest, RegisterUser, TokenResponse, UserRead
+from app.schemas.auth import EmailRequest, RefreshTokenRequest, RegisterUser, TokenResponse, UserRead
 
 router = APIRouter(prefix="/auth/v1", tags=["Authentication"])
 role_checker = RoleChecker(["admin", "user"])
 
+
+@router.post("/send-mail")
+async def send_mail(data: EmailRequest):
+    message = create_message(
+        recipients=[str(data.email)],
+        subject="Welcome to TaskFlow",
+        body="<h1>Welcome to TaskFlow API!</h1>"
+    )
+    try:
+        await mail.send_message(message)
+        return {"message": "Email sent to Mailtrap Sandbox"}
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Email failed: {exc}",
+        )
 
 @router.post("/signup", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 async def signup(credentials: RegisterUser, service: UserServiceDep):
@@ -51,4 +70,7 @@ async def logout(
 async def get_my_profile(
     current_user: User = Depends(get_current_user), _: bool = Depends(role_checker)
 ):
-    return current_user
+    try:
+        return current_user
+    except Exception as e:
+        raise 

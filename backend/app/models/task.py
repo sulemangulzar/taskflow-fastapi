@@ -1,7 +1,12 @@
+from typing import TYPE_CHECKING
 from datetime import date, datetime, timezone
 from enum import StrEnum
 from uuid import UUID, uuid4
 
+if TYPE_CHECKING:
+    from app.models.projects import Project
+
+from sqlmodel import Relationship
 import sqlalchemy as sa
 import sqlalchemy.dialects.postgresql as pg
 from sqlalchemy import String, func
@@ -95,3 +100,5 @@ class Task(Base, table=True):
             onupdate=func.now(),
         ),
     )
+
+    project: "Project" = Relationship(back_populates="tasks")

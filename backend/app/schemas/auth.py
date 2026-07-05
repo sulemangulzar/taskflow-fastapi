@@ -42,3 +42,7 @@ class UserRead(BaseModel):
     is_verified: bool
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+
+class EmailRequest(BaseModel):
+    email: EmailStr

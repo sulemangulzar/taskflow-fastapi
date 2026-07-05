@@ -66,6 +66,7 @@ class ProjectService:
         try:
             await self.repository.delete(project)
         except IntegrityError as exc:
+            print(exc)
             await self.repository.rollback()
             raise InputValidationError("Could not delete project") from exc
 

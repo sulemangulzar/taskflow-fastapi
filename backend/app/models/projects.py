@@ -1,5 +1,11 @@
+from typing import TYPE_CHECKING
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
+
+if TYPE_CHECKING:
+    from app.models.task import Task
+
+from sqlmodel import Relationship
 
 import sqlalchemy.dialects.postgresql as pg
 from sqlalchemy import String, func
@@ -41,3 +47,7 @@ class Project(Base, table=True):
             onupdate=func.now(),
         ),
     )
+
+    tasks : list["Task"] = Relationship(
+        back_populates="project",
+        cascade_delete=True,)
