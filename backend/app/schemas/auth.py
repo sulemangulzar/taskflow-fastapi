@@ -46,3 +46,11 @@ class UserRead(BaseModel):
 
 class EmailRequest(BaseModel):
     email: EmailStr
+
+
+class PasswordReset(BaseModel):
+    email : EmailStr
+
+class PasswordResetConfirm(BaseModel):
+    new_password : str
+    confirm_new_password : str

@@ -1,3 +1,4 @@
+from app.errors import AccountNotVerified
 from app.errors import ForbiddenError
 from app.errors import InvalidTokenType
 from app.errors import UserNotFoundOrUnauthorised
@@ -80,7 +81,8 @@ class RoleChecker:
 
     def __call__(self, current_user: CurrentUserDep) -> bool:
         user_role = getattr(current_user, "role", None)
-
+        if not current_user.is_verified:
+            raise AccountNotVerified()
         if user_role in self.allowed_roles:
             return True
 

@@ -1,3 +1,10 @@
+from app.errors import PassordResetNotMatching
+from fastapi import HTTPException
+from app.schemas.auth import PasswordResetConfirm
+from fastapi import status
+from fastapi.responses import JSONResponse
+from pydantic import EmailStr
+from app.schemas.auth import PasswordReset
 from email_validator import validate_email
 from app.mail import create_message
 from email_validator import validate_email
@@ -157,3 +164,45 @@ class UserService:
         await self.repository.update(user)
         
         return {"message": "Email successfully verified"}
+
+    async def reset_password(self, email : EmailStr):
+        try:
+            url_safe_token = create_url_safe_token({"email": str(email)})
+            link = f"http://{settings.DOMAIN}/auth/v1/reset-password/{url_safe_token}"
+            html_template = f"""
+            <h2>Password Reset</h2>
+            <p>Click below to reset your password</p>
+            <a href="{link}">Verify email</a>
+            <p>This link expires in 30 minutes.</p>
+            """
+            message = create_message(
+                recipients=[str(email)],
+                subject="Welcome to TaskFlow",
+                body=html_template
+            )
+            await mail.send_message(message)
+            return JSONResponse(content={"message" : "Please Check Your Email To Reset Your Password"}, status_code=status.HTTP_200_OK)
+
+        except: 
+            return JSONResponse(content={"message" : "Invalid Email"}, status_code=status.HTTP_404_NOT_FOUND)
+        
+    
+    async def reset_password_confirm(self, token: str, new_creds: PasswordResetConfirm):
+        if new_creds.new_password != new_creds.confirm_new_password:
+            raise PassordResetNotMatching()
+
+        token_data = decode_url_safe_token(token)
+        if not token_data or "email" not in token_data:
+            raise InvalidToken("Invalid or expired password reset token")
+
+        email = token_data["email"]
+        user = await self.repository.get_by_email(email)
+        if not user:
+            raise InputValidationError("User not found")
+
+        hashed_password = await asyncio.to_thread(get_hashed_password, new_creds.new_password)
+        user.hashed_password = hashed_password
+        
+        await self.repository.update(user)
+
+        return {"message": "Password successfully reset"}

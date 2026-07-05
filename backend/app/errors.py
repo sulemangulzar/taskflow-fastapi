@@ -43,4 +43,10 @@ class ForbiddenError(HTTPException):
     def __init__(self, detail: str = "You are not allowed to perform this action"):
         super().__init__(status_code=403, detail=detail)
 
+class AccountNotVerified(HTTPException):
+    def __init__(self, detail: str = "Account Not Verified"):
+        super().__init__(status_code=403, detail=detail)
 
+class PassordResetNotMatching(HTTPException):
+    def __init__(self, detail: str = "Passwords are not same"):
+        super().__init__(status_code=403, detail=detail)
