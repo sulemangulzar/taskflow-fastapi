@@ -6,6 +6,9 @@ from app.api.routes.project import router as project_router
 from app.api.routes.task import router as task_router
 
 from app.middleware import register_middleware
+from app.core.limiter import limiter
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 app = FastAPI(
     title="TaskFlow API",
@@ -14,6 +17,9 @@ app = FastAPI(
 )
 
 register_middleware(app)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.include_router(auth_router)
 app.include_router(project_router)

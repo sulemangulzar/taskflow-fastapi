@@ -1,6 +1,7 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Request
+from app.core.limiter import limiter
 
 from app.api.dependencies import RoleChecker, TaskServiceDep, get_current_user
 from app.models.user import User
@@ -20,7 +21,9 @@ router = APIRouter(
     response_model=ReadTask,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("100/minute")
 async def create_task(
+    request: Request,
     project_id: UUID,
     data: CreateTask,
     service: TaskServiceDep,
@@ -30,7 +33,9 @@ async def create_task(
 
 
 @router.get("/projects/{project_id}/tasks", response_model=list[ReadTask])
+@limiter.limit("100/minute")
 async def get_project_tasks(
+    request: Request,
     project_id: UUID,
     service: TaskServiceDep,
     user: User = Depends(get_current_user),
@@ -39,7 +44,9 @@ async def get_project_tasks(
 
 
 @router.get("/tasks/{task_id}", response_model=ReadTask)
+@limiter.limit("100/minute")
 async def get_task(
+    request: Request,
     task_id: UUID,
     service: TaskServiceDep,
     user: User = Depends(get_current_user),
@@ -48,7 +55,9 @@ async def get_task(
 
 
 @router.patch("/tasks/{task_id}", response_model=ReadTask)
+@limiter.limit("100/minute")
 async def update_task(
+    request: Request,
     task_id: UUID,
     data: UpdateTask,
     service: TaskServiceDep,
@@ -58,7 +67,9 @@ async def update_task(
 
 
 @router.delete("/tasks/{task_id}")
+@limiter.limit("100/minute")
 async def delete_task(
+    request: Request,
     task_id: UUID,
     service: TaskServiceDep,
     user: User = Depends(get_current_user),

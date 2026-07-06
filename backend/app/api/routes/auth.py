@@ -3,8 +3,9 @@ from amqp import basic_message
 from app.schemas.auth import PasswordResetConfirm
 from typing import List
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Body, Depends, HTTPException, status, BackgroundTasks, Request
 from fastapi.security import OAuth2PasswordRequestForm
+from app.core.limiter import limiter
 
 from app.api.dependencies import (
     RoleChecker,
@@ -21,12 +22,14 @@ role_checker = RoleChecker(["admin", "user"])
 
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
-async def signup(credentials: RegisterUser, bg_tasks : BackgroundTasks, service: UserServiceDep):
+@limiter.limit("5/minute")
+async def signup(request: Request, credentials: RegisterUser, bg_tasks : BackgroundTasks, service: UserServiceDep):
     return await service.create(credentials, bg_tasks)
 
 
 @router.post("/send-mail")
-async def send_mail(data: EmailRequest, bg_tasks : BackgroundTasks,):
+@limiter.limit("3/minute")
+async def send_mail(request: Request, data: EmailRequest, bg_tasks : BackgroundTasks,):
         recipients = [str(data.email)]
         subject = "Welcome to TaskFlow"
         body = "<h1>Welcome to TaskFlow API!</h1>" 
@@ -40,20 +43,25 @@ async def send_mail(data: EmailRequest, bg_tasks : BackgroundTasks,):
             )
 
 @router.get("/verify/{token}")
-async def verify_email(token: str, service: UserServiceDep):
+@limiter.limit("5/minute")
+async def verify_email(request: Request, token: str, service: UserServiceDep):
     return await service.verify_email(token)
 
 @router.post("/forgot-password")
-async def forgot_password(data: PasswordReset, bg_tasks: BackgroundTasks, service: UserServiceDep):
+@limiter.limit("3/minute")
+async def forgot_password(request: Request, data: PasswordReset, bg_tasks: BackgroundTasks, service: UserServiceDep):
     return await service.reset_password(data.email, bg_tasks)
 
 @router.post("/reset-password/{token}")
-async def reset_password_confirm(token: str, new_credentials: PasswordResetConfirm, service: UserServiceDep):
+@limiter.limit("3/minute")
+async def reset_password_confirm(request: Request, token: str, new_credentials: PasswordResetConfirm, service: UserServiceDep):
     return await service.reset_password_confirm(token, new_credentials)
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("10/minute")
 async def login(
+    request: Request,
     service: UserServiceDep,
     form_data: OAuth2PasswordRequestForm = Depends(),
 ):
@@ -61,7 +69,9 @@ async def login(
 
 
 @router.post("/refresh", response_model=TokenResponse)
+@limiter.limit("20/minute")
 async def refresh_token(
+    request: Request,
     service: UserServiceDep,
     data: RefreshTokenRequest = Body(
         examples=[{"refresh_token": "paste-your-refresh-token-here"}]
@@ -73,7 +83,9 @@ async def refresh_token(
 
 
 @router.get("/me", response_model=UserRead, status_code=status.HTTP_200_OK)
+@limiter.limit("60/minute")
 async def get_my_profile(
+    request: Request,
     current_user: User = Depends(get_current_user), _: bool = Depends(role_checker)
 ):
     try:
@@ -82,7 +94,9 @@ async def get_my_profile(
         raise 
 
 @router.post("/logout")
+@limiter.limit("10/minute")
 async def logout(
+    request: Request,
     service: UserServiceDep,
     current_user: User = Depends(get_current_user),
     token: str = Depends(oauth_scheme),

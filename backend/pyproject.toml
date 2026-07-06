@@ -25,6 +25,7 @@ dependencies = [
     "pytest-asyncio>=1.4.0",
     "python-multipart>=0.0.32",
     "redis>=8.0.1",
+    "slowapi>=0.1.10",
     "sqlalchemy[asyncio]>=2.0.51",
     "sqlmodel>=0.0.39",
     "uvicorn>=0.49.0",

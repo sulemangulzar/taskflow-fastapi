@@ -1,6 +1,7 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, Request
+from app.core.limiter import limiter
 
 from app.api.dependencies import ProjectServiceDep, RoleChecker, get_current_user
 from app.models.user import User
@@ -21,7 +22,9 @@ router = APIRouter(
 
 
 @router.post("", response_model=ReadProject, status_code=status.HTTP_201_CREATED)
+@limiter.limit("60/minute")
 async def create_project(
+    request: Request,
     data: CreateProject,
     service: ProjectServiceDep,
     user: User = Depends(get_current_user),
@@ -30,7 +33,9 @@ async def create_project(
 
 
 @router.get("", response_model=PaginatedResponse[ReadProject])
+@limiter.limit("60/minute")
 async def get_all_projects(
+    request: Request,
     service: ProjectServiceDep,
     user: User = Depends(get_current_user),
     page: int = Query(1, ge=1),
@@ -41,7 +46,9 @@ async def get_all_projects(
 
 
 @router.get("/{project_id}", response_model=ReadProject)
+@limiter.limit("60/minute")
 async def get_project(
+    request: Request,
     project_id: UUID,
     service: ProjectServiceDep,
     user: User = Depends(get_current_user),
@@ -50,7 +57,9 @@ async def get_project(
 
 
 @router.patch("/{project_id}", response_model=ReadProject)
+@limiter.limit("60/minute")
 async def update_project(
+    request: Request,
     project_id: UUID,
     data: UpdateProject,
     service: ProjectServiceDep,
@@ -60,7 +69,9 @@ async def update_project(
 
 
 @router.delete("/{project_id}")
+@limiter.limit("60/minute")
 async def delete_project(
+    request: Request,
     project_id: UUID,
     service: ProjectServiceDep,
     user: User = Depends(get_current_user),
