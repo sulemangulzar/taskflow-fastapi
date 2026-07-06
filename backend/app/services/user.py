@@ -8,7 +8,7 @@ from pydantic import EmailStr
 from app.schemas.auth import PasswordReset
 from email_validator import validate_email
 from app.mail import create_message
-
+from app.celery_tasks import send_email
 from anyio import lowlevel
 from app.core.utils import create_url_safe_token, decode_url_safe_token
 import asyncio
@@ -58,12 +58,11 @@ class UserService:
             <a href="{link}">Verify email</a>
             <p>This link expires in 30 minutes.</p>
             """
-            message = create_message(
-                recipients=[str(credentials.email)],
-                subject="Welcome to TaskFlow",
-                body=html_template
-            )
-            bg_task.add_task(mail.send_message, message)
+            recipients = [str(credentials.email)]
+            subject = "Welcome to TaskFlow"
+            body = html_template
+            
+            send_email.delay(recipients, subject, body)
             return await self.repository.create(new_user)
         except IntegrityError:
             await self.repository.rollback()
@@ -188,12 +187,11 @@ class UserService:
             <a href="{link}">Verify email</a>
             <p>This link expires in 30 minutes.</p>
             """
-            message = create_message(
-                recipients=[str(email)],
-                subject="Welcome to TaskFlow",
-                body=html_template
-            )
-            bg_task.add_task(mail.send_message, message)
+            recipients = [str(email)]
+            subject = "Welcome to TaskFlow"
+            body = html_template
+
+            send_email.delay(recipients, subject, body)
             return JSONResponse(content={"message" : "Please Check Your Email To Reset Your Password"}, status_code=status.HTTP_200_OK)
 
         except Exception as e: 

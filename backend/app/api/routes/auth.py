@@ -1,3 +1,5 @@
+from amqp import basic_message
+from amqp import basic_message
 from app.schemas.auth import PasswordResetConfirm
 from typing import List
 
@@ -13,7 +15,7 @@ from app.api.dependencies import (
 from app.mail import create_message, mail
 from app.models.user import User
 from app.schemas.auth import EmailRequest, RefreshTokenRequest, RegisterUser, TokenResponse, UserRead, PasswordReset
-
+from app.celery_tasks import send_email
 router = APIRouter(prefix="/auth/v1", tags=["Authentication"])
 role_checker = RoleChecker(["admin", "user"])
 
@@ -25,19 +27,17 @@ async def signup(credentials: RegisterUser, bg_tasks : BackgroundTasks, service:
 
 @router.post("/send-mail")
 async def send_mail(data: EmailRequest, bg_tasks : BackgroundTasks,):
-    message = create_message(
-        recipients=[str(data.email)],
-        subject="Welcome to TaskFlow",
-        body="<h1>Welcome to TaskFlow API!</h1>"
-    )
-    try:
-        bg_tasks.add_task(mail.send_message, message)
-        return {"message": "Email sent to Mailtrap Sandbox"}
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Email failed: {exc}",
-        )
+        recipients = [str(data.email)]
+        subject = "Welcome to TaskFlow"
+        body = "<h1>Welcome to TaskFlow API!</h1>" 
+        try:
+            send_email.delay(recipients, subject, body)
+            return {"message": "Email sent to Mailtrap Sandbox"}
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Email failed: {exc}",
+            )
 
 @router.get("/verify/{token}")
 async def verify_email(token: str, service: UserServiceDep):

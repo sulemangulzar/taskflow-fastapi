@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     JWT_ISSUER: str
     JWT_AUDIENCE: str
     REFRESH_TOKEN_EXPIRE_DAYS: int
+    REDIS_URL : str
     REDIS_HOST: str
     REDIS_PORT: int
     MAIL_USERNAME: str
@@ -22,3 +23,6 @@ class Settings(BaseSettings):
 
 
 settings = Settings() 
+
+broker_url = settings.REDIS_URL
+result_backend = settings.REDIS_URL
