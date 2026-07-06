@@ -13,7 +13,13 @@ from sqlmodel import SQLModel
 
 from app.api.dependencies import get_current_user, get_session
 from app.db.redis import token_blocklist
-from main import app
+from app.main import app
+from app.core.limiter import limiter
+
+# ---------------------------------------------------------------------------
+# Disable Rate Limiter for tests
+# ---------------------------------------------------------------------------
+limiter.enabled = False
 
 # ---------------------------------------------------------------------------
 # In-memory async SQLite engine
@@ -74,9 +80,13 @@ async def client():
 
     # Patch Redis blocklist to be a no-op for tests
     from unittest.mock import AsyncMock, patch
+    
+    # Also patch celery send_email to be a no-op
+    from app.celery_tasks import send_email
 
     with patch.object(token_blocklist, "exists", new=AsyncMock(return_value=0)), \
-         patch.object(token_blocklist, "set", new=AsyncMock(return_value=True)):
+         patch.object(token_blocklist, "set", new=AsyncMock(return_value=True)), \
+         patch.object(send_email, "delay", return_value=True):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as ac:
