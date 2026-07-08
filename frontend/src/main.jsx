@@ -7,6 +7,19 @@ const API_URL = (
 ).replace(/\/$/, "");
 const TASK_STATUSES = ["todo", "in_progress", "review", "blocked", "done"];
 const TASK_PRIORITIES = ["low", "medium", "high", "urgent"];
+const STATUS_LABELS = {
+  todo: "To do",
+  in_progress: "In progress",
+  review: "Review",
+  blocked: "Blocked",
+  done: "Done",
+};
+const PRIORITY_LABELS = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  urgent: "Urgent",
+};
 
 function getErrorMessage(error) {
   if (typeof error?.detail === "string") return error.detail;
@@ -49,6 +62,9 @@ function App() {
     () => projects.find((project) => project.id === selectedProjectId),
     [projects, selectedProjectId],
   );
+
+  const completedTasks = tasks.filter((task) => task.status === "done").length;
+  const openTasks = tasks.length - completedTasks;
 
   async function request(path, options = {}) {
     const headers = new Headers(options.headers || {});
@@ -387,13 +403,18 @@ function App() {
           <h1>
             {authMode === "login" ? "Welcome back" : "Create your account"}
           </h1>
-          <p className="muted">Sign in to manage your projects and tasks.</p>
+          <p className="muted">
+            {authMode === "login"
+              ? "Enter your email and password to continue."
+              : "Create an account to start organizing your work."}
+          </p>
 
           <form onSubmit={handleAuth} className="stack">
             {authMode === "signup" && (
               <label>
                 Name
                 <input
+                  placeholder="Your full name"
                   value={authForm.name}
                   onChange={(event) =>
                     setAuthForm({ ...authForm, name: event.target.value })
@@ -406,6 +427,7 @@ function App() {
               Email
               <input
                 type="email"
+                placeholder="you@example.com"
                 value={authForm.email}
                 onChange={(event) =>
                   setAuthForm({ ...authForm, email: event.target.value })
@@ -417,6 +439,7 @@ function App() {
               Password
               <input
                 type="password"
+                placeholder="At least 6 characters"
                 value={authForm.password}
                 onChange={(event) =>
                   setAuthForm({ ...authForm, password: event.target.value })
@@ -455,17 +478,14 @@ function App() {
       <header className="topbar">
         <div>
           <p className="eyebrow">TaskFlow</p>
-          <h1>Projects & Tasks</h1>
+          <h1>Your workspace</h1>
           {user && (
             <p className="muted">
-              Signed in as {user.name} ({user.email})
+              Welcome, {user.name}. Manage projects and keep tasks moving.
             </p>
           )}
         </div>
         <div className="topbar-actions">
-          <button className="secondary" onClick={refreshAccessToken}>
-            Refresh token
-          </button>
           <button className="secondary" onClick={logout}>
             Logout
           </button>
@@ -475,12 +495,18 @@ function App() {
       {notice && <p className="notice">{notice}</p>}
 
       <section className="grid">
-        <aside className="card">
-          <h2>Create project</h2>
+        <aside className="card sidebar-card">
+          <div className="card-heading">
+            <div>
+              <h2>Projects</h2>
+              <p className="muted">Create a space for each goal or client.</p>
+            </div>
+          </div>
           <form onSubmit={createProject} className="stack">
             <label>
-              Name
+              Project name
               <input
+                placeholder="Website redesign"
                 value={projectForm.name}
                 onChange={(event) =>
                   setProjectForm({ ...projectForm, name: event.target.value })
@@ -489,8 +515,9 @@ function App() {
               />
             </label>
             <label>
-              Description
+              Short description
               <textarea
+                placeholder="What is this project about?"
                 value={projectForm.description}
                 onChange={(event) =>
                   setProjectForm({
@@ -504,9 +531,18 @@ function App() {
             <button>Create project</button>
           </form>
 
-          <h2>Your projects</h2>
+          <div className="list-heading">
+            <h3>Your projects</h3>
+            <span>{projects.length}</span>
+          </div>
           {loading ? <p className="muted">Loading...</p> : null}
           <div className="project-list">
+            {!loading && projects.length === 0 && (
+              <div className="empty-state compact">
+                <strong>No projects yet</strong>
+                <p>Create your first project above to begin.</p>
+              </div>
+            )}
             {projects.map((project) => (
               <button
                 key={project.id}
@@ -527,11 +563,18 @@ function App() {
         <section className="card main-card">
           <div className="section-heading">
             <div>
+              <p className="eyebrow">Tasks</p>
               <h2>
-                {selectedProject ? selectedProject.name : "Select a project"}
+                {selectedProject
+                  ? selectedProject.name
+                  : "Choose or create a project"}
               </h2>
-              {selectedProject && (
+              {selectedProject ? (
                 <p className="muted">{selectedProject.description}</p>
+              ) : (
+                <p className="muted">
+                  Select a project on the left to add and track tasks.
+                </p>
               )}
             </div>
             {selectedProject && (
@@ -544,8 +587,26 @@ function App() {
             )}
           </div>
 
+          {selectedProject && (
+            <div className="task-summary">
+              <div>
+                <strong>{tasks.length}</strong>
+                <span>Total tasks</span>
+              </div>
+              <div>
+                <strong>{openTasks}</strong>
+                <span>Open</span>
+              </div>
+              <div>
+                <strong>{completedTasks}</strong>
+                <span>Done</span>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={createTask} className="task-form">
             <input
+              disabled={!selectedProject}
               placeholder="Task title"
               value={taskForm.title}
               onChange={(event) =>
@@ -554,13 +615,16 @@ function App() {
               required
             />
             <input
-              placeholder="Description"
+              disabled={!selectedProject}
+              placeholder="Notes or details"
               value={taskForm.description}
               onChange={(event) =>
                 setTaskForm({ ...taskForm, description: event.target.value })
               }
             />
             <select
+              disabled={!selectedProject}
+              aria-label="Task priority"
               value={taskForm.priority}
               onChange={(event) =>
                 setTaskForm({ ...taskForm, priority: event.target.value })
@@ -568,11 +632,12 @@ function App() {
             >
               {TASK_PRIORITIES.map((priority) => (
                 <option key={priority} value={priority}>
-                  {priority}
+                  {PRIORITY_LABELS[priority]}
                 </option>
               ))}
             </select>
             <input
+              disabled={!selectedProject}
               type="email"
               placeholder="Assignee email"
               value={taskForm.assigned_to_email}
@@ -584,29 +649,53 @@ function App() {
               }
             />
             <input
+              disabled={!selectedProject}
               type="date"
+              aria-label="Due date"
               value={taskForm.due_date}
               onChange={(event) =>
                 setTaskForm({ ...taskForm, due_date: event.target.value })
               }
             />
-            <button>Add task</button>
+            <button disabled={!selectedProject}>Add task</button>
           </form>
 
           <div className="task-list">
-            {tasks.length === 0 && <p className="empty">No tasks yet.</p>}
+            {!selectedProject && (
+              <div className="empty-state">
+                <strong>No project selected</strong>
+                <p>
+                  Create a project or select one from the sidebar to start
+                  adding tasks.
+                </p>
+              </div>
+            )}
+            {selectedProject && tasks.length === 0 && (
+              <div className="empty-state">
+                <strong>No tasks yet</strong>
+                <p>
+                  Add the first task above. Keep titles short and use priority
+                  to plan your day.
+                </p>
+              </div>
+            )}
             {tasks.map((task) => (
               <article key={task.id} className="task-card">
                 <div>
                   <h3>{task.title}</h3>
                   {task.description && <p>{task.description}</p>}
-                  <small>
-                    Priority: {task.priority}{" "}
-                    {task.due_date ? `• Due: ${task.due_date}` : ""}
-                  </small>
+                  <div className="task-meta">
+                    <span className={`pill priority-${task.priority}`}>
+                      {PRIORITY_LABELS[task.priority] || task.priority}
+                    </span>
+                    {task.due_date && (
+                      <span className="pill neutral">Due {task.due_date}</span>
+                    )}
+                  </div>
                 </div>
                 <div className="task-actions">
                   <select
+                    aria-label={`Status for ${task.title}`}
                     value={task.status}
                     onChange={(event) =>
                       updateTask(task.id, { status: event.target.value })
@@ -614,7 +703,7 @@ function App() {
                   >
                     {TASK_STATUSES.map((status) => (
                       <option key={status} value={status}>
-                        {status}
+                        {STATUS_LABELS[status]}
                       </option>
                     ))}
                   </select>
