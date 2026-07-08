@@ -1,8 +1,3 @@
-from app.errors import AccountNotVerified
-from app.errors import ForbiddenError
-from app.errors import InvalidTokenType
-from app.errors import UserNotFoundOrUnauthorised
-from app.errors import InvalidToken
 from typing import Annotated
 from uuid import UUID
 
@@ -12,6 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.jwt import decode_token
 from app.db.session import get_session
+from app.errors import (
+    ForbiddenError,
+    InvalidToken,
+    InvalidTokenType,
+    UserNotFoundOrUnauthorised,
+)
 from app.models.user import User
 from app.repositories.token_repo import token_in_blocklist
 from app.repositories.user import UserRepository
@@ -81,8 +82,6 @@ class RoleChecker:
 
     def __call__(self, current_user: CurrentUserDep) -> bool:
         user_role = getattr(current_user, "role", None)
-        if not current_user.is_verified:
-            raise AccountNotVerified()
         if user_role in self.allowed_roles:
             return True
 

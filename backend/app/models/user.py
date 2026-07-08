@@ -10,7 +10,7 @@ from app.db.base import Base
 
 
 class User(Base, table=True):
-    __tablename__ = "users"  # type: ignore
+    __tablename__ = "users"  # pyright: ignore[reportAssignmentType]
 
     id: UUID = Field(
         default_factory=uuid4,

@@ -1,16 +1,15 @@
-from typing import TYPE_CHECKING
 from datetime import date, datetime, timezone
 from enum import StrEnum
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 if TYPE_CHECKING:
     from app.models.projects import Project
 
-from sqlmodel import Relationship
 import sqlalchemy as sa
 import sqlalchemy.dialects.postgresql as pg
 from sqlalchemy import String, func
-from sqlmodel import Column, Field
+from sqlmodel import Column, Field, Relationship
 
 from app.db.base import Base
 
@@ -31,13 +30,11 @@ class TaskPriority(StrEnum):
 
 
 class Task(Base, table=True):
-    __tablename__ = "tasks"  # type: ignore
+    __tablename__ = "tasks"  # pyright: ignore[reportAssignmentType]
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
 
-    title: str = Field(
-        sa_column=Column(String, nullable=False)
-    )
+    title: str = Field(sa_column=Column(String, nullable=False))
 
     description: str | None = Field(
         default=None,

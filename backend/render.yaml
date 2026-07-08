@@ -1,0 +1,69 @@
+services:
+  - type: web
+    name: taskflow-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && alembic upgrade head
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: taskflow-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: taskflow-redis
+          property: connectionString
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: taskflow-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: taskflow-redis
+          property: port
+      - key: DEBUG
+        value: "false"
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: "7"
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_ISSUER
+        value: taskflow-api
+      - key: JWT_AUDIENCE
+        value: taskflow-client
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: DOMAIN
+        value: https://taskflow-api.onrender.com
+      - key: FRONTEND_ORIGINS
+        value: http://localhost:5173
+      - key: CORS_ORIGIN_REGEX
+        value: https://.*\.vercel\.app
+      - key: ALLOWED_HOSTS
+        value: localhost,127.0.0.1,test,testserver,*.onrender.com
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: MAIL_SERVER
+        sync: false
+      - key: MAIL_PORT
+        sync: false
+  - type: redis
+    name: taskflow-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
+
+databases:
+  - name: taskflow-db
+    plan: free

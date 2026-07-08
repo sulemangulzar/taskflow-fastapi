@@ -1,10 +1,14 @@
+aioredis>=2.0.1
+aiosqlite>=0.21.0
 alembic==1.18.5
 annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.14.1
 argon2-cffi==25.1.0
 argon2-cffi-bindings==25.1.0
+asgiref>=3.11.1
 asyncpg==0.31.0
+celery>=5.6.3
 certifi==2026.6.17
 cffi==2.0.0
 click==8.4.2
@@ -12,6 +16,7 @@ detect-installer==0.1.0
 dnspython==2.8.0
 email-validator==2.3.0
 fastapi==0.138.2
+fastapi-mail>=1.6.5
 fastapi-cli==0.0.27
 fastapi-cloud-cli==0.22.0
 fastar==0.11.0
@@ -39,6 +44,7 @@ pydantic-extra-types==2.11.1
 pydantic-settings==2.14.2
 pygments==2.20.0
 pyjwt==2.13.0
+redis>=8.0.1
 pytest==9.1.1
 pytest-asyncio==1.4.0
 python-dotenv==1.2.2
@@ -49,6 +55,7 @@ rich-toolkit==0.20.1
 rignore==0.7.6
 sentry-sdk==2.64.0
 shellingham==1.5.4
+slowapi>=0.1.10
 sqlalchemy==2.0.51
 sqlmodel==0.0.39
 starlette==1.3.1

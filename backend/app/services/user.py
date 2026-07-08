@@ -1,41 +1,35 @@
-from fastapi import BackgroundTasks
-from app.errors import PasswordResetNotMatching
-from fastapi import HTTPException
-from app.schemas.auth import PasswordResetConfirm
-from fastapi import status
-from fastapi.responses import JSONResponse
-from pydantic import EmailStr
-from app.schemas.auth import PasswordReset
-from email_validator import validate_email
-from app.mail import create_message
-from app.celery_tasks import send_email
-from anyio import lowlevel
-from app.core.utils import create_url_safe_token, decode_url_safe_token
 import asyncio
 from uuid import UUID
-from app.mail import mail
+
+from fastapi import BackgroundTasks, status
+from fastapi.responses import JSONResponse
+from pydantic import EmailStr
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.celery_tasks import send_email
+from app.core.config import settings
+from app.core.jwt import create_access_token, create_refresh_token, decode_token
+from app.core.security import get_hashed_password, verify_password
+from app.core.utils import create_url_safe_token, decode_url_safe_token
 from app.errors import (
     EmailAlreadyExistsError,
     InputValidationError,
     InvalidCredentialsError,
     InvalidToken,
+    PasswordResetNotMatching,
 )
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.config import settings
-from app.core.jwt import create_access_token, create_refresh_token, decode_token
-from app.core.security import get_hashed_password, verify_password
 from app.models.user import User
 from app.repositories.token_repo import add_jti_to_blocklist
 from app.repositories.user import UserRepository
-from app.schemas.auth import RegisterUser
+from app.schemas.auth import PasswordResetConfirm, RegisterUser
 
 
 class UserService:
     def __init__(self, session: AsyncSession):
         self.repository = UserRepository(session)
 
-    async def create(self, credentials: RegisterUser, bg_task : BackgroundTasks) -> User:
+    async def create(self, credentials: RegisterUser, bg_task: BackgroundTasks) -> User:
         existing_user = await self.repository.get_by_email(str(credentials.email))
         if existing_user:
             raise EmailAlreadyExistsError()
@@ -61,8 +55,8 @@ class UserService:
             recipients = [str(credentials.email)]
             subject = "Welcome to TaskFlow"
             body = html_template
-            
-            send_email.delay(recipients, subject, body)
+
+            send_email.delay(recipients, subject, body)  # type: ignore[attr-defined]
             return await self.repository.create(new_user)
         except IntegrityError:
             await self.repository.rollback()
@@ -159,25 +153,30 @@ class UserService:
         token_data = decode_url_safe_token(token)
         if not token_data or "email" not in token_data:
             raise InvalidToken("Invalid or expired verification token")
-        
+
         email = token_data["email"]
         user = await self.repository.get_by_email(email)
         if not user:
             raise InputValidationError("User not found")
-        
+
         if user.is_verified:
             return {"message": "Email is already verified"}
-            
+
         user.is_verified = True
         await self.repository.update(user)
-        
+
         return {"message": "Email successfully verified"}
 
-    async def reset_password(self, email : EmailStr, bg_task : BackgroundTasks):
+    async def reset_password(self, email: EmailStr, bg_task: BackgroundTasks):
         try:
             user = await self.repository.get_by_email(str(email))
             if not user:
-                return JSONResponse(content={"message" : "Please Check Your Email To Reset Your Password"}, status_code=status.HTTP_200_OK)
+                return JSONResponse(
+                    content={
+                        "message": "Please Check Your Email To Reset Your Password"
+                    },
+                    status_code=status.HTTP_200_OK,
+                )
 
             url_safe_token = create_url_safe_token({"email": str(email)})
             link = f"http://{settings.DOMAIN}/auth/v1/reset-password/{url_safe_token}"
@@ -191,13 +190,18 @@ class UserService:
             subject = "Welcome to TaskFlow"
             body = html_template
 
-            send_email.delay(recipients, subject, body)
-            return JSONResponse(content={"message" : "Please Check Your Email To Reset Your Password"}, status_code=status.HTTP_200_OK)
+            send_email.delay(recipients, subject, body)  # type: ignore[attr-defined]
+            return JSONResponse(
+                content={"message": "Please Check Your Email To Reset Your Password"},
+                status_code=status.HTTP_200_OK,
+            )
 
-        except Exception as e: 
-            return JSONResponse(content={"message" : "An error occurred"}, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-    
+        except Exception:
+            return JSONResponse(
+                content={"message": "An error occurred"},
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
     async def reset_password_confirm(self, token: str, new_creds: PasswordResetConfirm):
         if new_creds.new_password != new_creds.confirm_new_password:
             raise PasswordResetNotMatching()
@@ -211,9 +215,11 @@ class UserService:
         if not user:
             raise InputValidationError("User not found")
 
-        hashed_password = await asyncio.to_thread(get_hashed_password, new_creds.new_password)
+        hashed_password = await asyncio.to_thread(
+            get_hashed_password, new_creds.new_password
+        )
         user.hashed_password = hashed_password
-        
+
         await self.repository.update(user)
 
         return {"message": "Password successfully reset"}

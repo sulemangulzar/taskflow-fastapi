@@ -11,10 +11,10 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlmodel import SQLModel
 
-from app.api.dependencies import get_current_user, get_session
+from app.api.dependencies import get_session
+from app.core.limiter import limiter
 from app.db.redis import token_blocklist
 from app.main import app
-from app.core.limiter import limiter
 
 # ---------------------------------------------------------------------------
 # Disable Rate Limiter for tests
@@ -80,13 +80,15 @@ async def client():
 
     # Patch Redis blocklist to be a no-op for tests
     from unittest.mock import AsyncMock, patch
-    
+
     # Also patch celery send_email to be a no-op
     from app.celery_tasks import send_email
 
-    with patch.object(token_blocklist, "exists", new=AsyncMock(return_value=0)), \
-         patch.object(token_blocklist, "set", new=AsyncMock(return_value=True)), \
-         patch.object(send_email, "delay", return_value=True):
+    with (
+        patch.object(token_blocklist, "exists", new=AsyncMock(return_value=0)),
+        patch.object(token_blocklist, "set", new=AsyncMock(return_value=True)),
+        patch.object(send_email, "delay", return_value=True),
+    ):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
         ) as ac:
@@ -98,7 +100,11 @@ async def client():
 @pytest_asyncio.fixture
 async def registered_user(client: AsyncClient) -> dict:
     """Register a test user and return the response payload."""
-    payload = {"name": "Test User", "email": "test@example.com", "password": "secret123"}
+    payload = {
+        "name": "Test User",
+        "email": "test@example.com",
+        "password": "secret123",
+    }
     resp = await client.post("/auth/v1/signup", json=payload)
     assert resp.status_code == 201, resp.text
     return resp.json()
@@ -115,7 +121,7 @@ async def auth_tokens(client: AsyncClient, registered_user) -> dict:
     return resp.json()
 
 
-@pytest_asyncio.fixture
+@pytest.fixture
 def auth_headers(auth_tokens: dict) -> dict:
     """Return Authorization headers for authenticated requests."""
     return {"Authorization": f"Bearer {auth_tokens['access_token']}"}

@@ -59,4 +59,4 @@ def decode_token(token: str) -> dict | None:
             audience=settings.JWT_AUDIENCE,
         )
     except InvalidTokenError:
-        raise InvalidTokenError()
+        return None
