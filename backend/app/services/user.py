@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from uuid import UUID
 
 from fastapi import BackgroundTasks, status
@@ -24,6 +25,15 @@ from app.repositories.token_repo import add_jti_to_blocklist
 from app.repositories.user import UserRepository
 from app.schemas.auth import PasswordResetConfirm, RegisterUser
 
+logger = logging.getLogger(__name__)
+
+
+def queue_email(recipients: list[str], subject: str, body: str) -> None:
+    try:
+        send_email.delay(recipients, subject, body)  # type: ignore[attr-defined]
+    except Exception as exc:
+        logger.warning("Email task could not be queued: %s", exc)
+
 
 class UserService:
     def __init__(self, session: AsyncSession):
@@ -45,7 +55,8 @@ class UserService:
 
         try:
             url_safe_token = create_url_safe_token({"email": str(credentials.email)})
-            link = f"http://{settings.DOMAIN}/auth/v1/verify/{url_safe_token}"
+            base_url = settings.DOMAIN.rstrip("/")
+            link = f"{base_url}/auth/v1/verify/{url_safe_token}"
             html_template = f"""
             <h2>Email verification</h2>
             <p>Click below to verify your account:</p>
@@ -56,8 +67,9 @@ class UserService:
             subject = "Welcome to TaskFlow"
             body = html_template
 
-            send_email.delay(recipients, subject, body)  # type: ignore[attr-defined]
-            return await self.repository.create(new_user)
+            created_user = await self.repository.create(new_user)
+            queue_email(recipients, subject, body)
+            return created_user
         except IntegrityError:
             await self.repository.rollback()
             raise EmailAlreadyExistsError()
@@ -179,7 +191,8 @@ class UserService:
                 )
 
             url_safe_token = create_url_safe_token({"email": str(email)})
-            link = f"http://{settings.DOMAIN}/auth/v1/reset-password/{url_safe_token}"
+            base_url = settings.DOMAIN.rstrip("/")
+            link = f"{base_url}/auth/v1/reset-password/{url_safe_token}"
             html_template = f"""
             <h2>Password Reset</h2>
             <p>Click below to reset your password</p>
@@ -190,7 +203,7 @@ class UserService:
             subject = "Welcome to TaskFlow"
             body = html_template
 
-            send_email.delay(recipients, subject, body)  # type: ignore[attr-defined]
+            queue_email(recipients, subject, body)
             return JSONResponse(
                 content={"message": "Please Check Your Email To Reset Your Password"},
                 status_code=status.HTTP_200_OK,

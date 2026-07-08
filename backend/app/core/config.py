@@ -1,3 +1,5 @@
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -12,8 +14,8 @@ class Settings(BaseSettings):
     JWT_AUDIENCE: str
     REFRESH_TOKEN_EXPIRE_DAYS: int
     REDIS_URL: str
-    REDIS_HOST: str
-    REDIS_PORT: int
+    REDIS_HOST: str = ""
+    REDIS_PORT: int = 6379
     MAIL_USERNAME: str
     MAIL_PASSWORD: str
     MAIL_FROM: str
@@ -27,11 +29,36 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def normalize_database_url(cls, value: str) -> str:
-        if value.startswith("postgres://"):
-            return value.replace("postgres://", "postgresql+asyncpg://", 1)
-        if value.startswith("postgresql://"):
-            return value.replace("postgresql://", "postgresql+asyncpg://", 1)
-        return value
+        if not isinstance(value, str):
+            return value
+
+        normalized = value.strip()
+        if normalized.startswith("postgres://"):
+            normalized = normalized.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif normalized.startswith("postgresql://"):
+            normalized = normalized.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+        if normalized.startswith("postgresql+asyncpg://"):
+            parts = urlsplit(normalized)
+            query = dict(parse_qsl(parts.query, keep_blank_values=True))
+
+            query.pop("channel_binding", None)
+
+            ssl_value = query.pop("ssl", None)
+            if ssl_value and ssl_value.lower() in {"true", "1", "yes"}:
+                query.setdefault("sslmode", "require")
+
+            normalized = urlunsplit(
+                (
+                    parts.scheme,
+                    parts.netloc,
+                    parts.path,
+                    urlencode(query),
+                    parts.fragment,
+                )
+            )
+
+        return normalized
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
