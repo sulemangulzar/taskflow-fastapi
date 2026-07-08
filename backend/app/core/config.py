@@ -1,11 +1,12 @@
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     DATABASE_URL: str
+    DATABASE_SSL: bool = False
     DEBUG: bool = False
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     JWT_SECRET_KEY: str
@@ -43,10 +44,8 @@ class Settings(BaseSettings):
             query = dict(parse_qsl(parts.query, keep_blank_values=True))
 
             query.pop("channel_binding", None)
-
-            ssl_value = query.pop("ssl", None)
-            if ssl_value and ssl_value.lower() in {"true", "1", "yes"}:
-                query.setdefault("sslmode", "require")
+            query.pop("sslmode", None)
+            query.pop("ssl", None)
 
             normalized = urlunsplit(
                 (
@@ -59,6 +58,27 @@ class Settings(BaseSettings):
             )
 
         return normalized
+
+    @model_validator(mode="before")
+    @classmethod
+    def infer_database_ssl(cls, values):
+        if not isinstance(values, dict):
+            return values
+
+        database_url = values.get("DATABASE_URL") or values.get("database_url")
+        database_ssl = values.get("DATABASE_SSL") or values.get("database_ssl")
+        if isinstance(database_url, str) and database_ssl is None:
+            lowered = database_url.lower()
+            values["DATABASE_SSL"] = any(
+                marker in lowered
+                for marker in (
+                    "sslmode=require",
+                    "sslmode=verify-ca",
+                    "sslmode=verify-full",
+                    "ssl=true",
+                )
+            )
+        return values
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
